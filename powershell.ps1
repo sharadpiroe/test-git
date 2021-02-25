@@ -1,1 +1,1 @@
-get-process
+help get-process
