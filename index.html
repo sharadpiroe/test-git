@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Azure Video Upload GreenPoint</title>
+  <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
+  <script type="module">
+    import {
+      BlobServiceClient,
+    } from "https://cdn.jsdelivr.net/npm/@azure/storage-blob@12.10.0/+esm";
+
+    const msalConfig = {
+      auth: {
+        clientId: "99964070-9962-456a-8683-cfa382df830b",
+        authority: "https://login.microsoftonline.com/7e5aaa53-9d3d-4269-bdc4-c9ffd286f492",
+        redirectUri: window.location.href
+      }
+    };
+
+    const msalInstance = new msal.PublicClientApplication(msalConfig);
+    let accessToken = null;
+
+    async function signIn() {
+      const loginResponse = await msalInstance.loginPopup({ scopes: ["https://storage.azure.com/.default"] });
+      const tokenResponse = await msalInstance.acquireTokenSilent({
+        scopes: ["https://storage.azure.com/.default"],
+        account: loginResponse.account
+      });
+      accessToken = tokenResponse.accessToken;
+      document.getElementById("upload-section").style.display = "block";
+    }
+
+    async function uploadFile() {
+      const fileInput = document.getElementById("file");
+      const file = fileInput.files[0];
+      if (!file || !accessToken) return;
+
+      const blobUrl = "https://stpmdgreenpoint.blob.core.windows.net/greenpoint/" + encodeURIComponent(file.name);
+      const blobClient = new BlobServiceClient(
+        `https://stpmdgreenpoint.blob.core.windows.net`,
+        new Azure.StorageBlob.AnonymousCredential()
+      ).getContainerClient("greenpoint").getBlockBlobClient(file.name);
+
+      await blobClient.uploadBrowserData(file, {
+        blobHTTPHeaders: { blobContentType: file.type },
+        customerProvidedKeyOptions: {
+          authorization: `Bearer ${accessToken}`
+        }
+      });
+      alert("Upload complete");
+    }
+
+    window.signIn = signIn;
+    window.uploadFile = uploadFile;
+  </script>
+</head>
+<body>
+  <h1>Azure Video Upload</h1>
+  <button onclick="signIn()">Log in met Entra ID</button>
+
+  <div id="upload-section" style="display:none;">
+    <input type="file" id="file" accept="video/*" />
+    <button onclick="uploadFile()">Upload video</button>
+  </div>
+</body>
+</html>
