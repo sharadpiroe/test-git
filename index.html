@@ -31,26 +31,39 @@
       document.getElementById("upload-section").style.display = "block";
     }
 
-    async function uploadFile() {
-      const fileInput = document.getElementById("file");
-      const file = fileInput.files[0];
-      if (!file || !accessToken) return;
+async function uploadFile() {
+  const fileInput = document.getElementById("file");
+  const file = fileInput.files[0];
+  if (!file || !accessToken) {
+    console.error("Geen bestand of access token.");
+    return;
+  }
 
-      const blobUrl = "https://stpmdgreenpoint.blob.core.windows.net/greenpoint/" + encodeURIComponent(file.name);
-      const blobClient = new BlobServiceClient(
-        `https://stpmdgreenpoint.blob.core.windows.net`,
-        new Azure.StorageBlob.AnonymousCredential()
-      ).getContainerClient("greenpoint").getBlockBlobClient(file.name);
+  const accountName = "stpmdgreenpoint";
+  const containerName = "greenpoint";
 
-      await blobClient.uploadBrowserData(file, {
-        blobHTTPHeaders: { blobContentType: file.type },
-        customerProvidedKeyOptions: {
-          authorization: `Bearer ${accessToken}`
-        }
-      });
-      alert("Upload complete");
-    }
+  const tokenCredential = {
+    getToken: () => Promise.resolve({
+      token: accessToken,
+      expiresOnTimestamp: Date.now() + 3600 * 1000
+    })
+  };
 
+  const blobServiceClient = new BlobServiceClient(
+    `https://${accountName}.blob.core.windows.net`,
+    tokenCredential
+  );
+
+  const containerClient = blobServiceClient.getContainerClient(containerName);
+  const blobClient = containerClient.getBlockBlobClient(file.name);
+
+  console.log("Upload start:", file.name);
+  await blobClient.uploadData(file, {
+    blobHTTPHeaders: { blobContentType: file.type }
+  });
+
+  alert("Upload voltooid!");
+}
     window.signIn = signIn;
     window.uploadFile = uploadFile;
   </script>
